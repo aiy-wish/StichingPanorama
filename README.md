@@ -1,49 +1,51 @@
-# CMSC426_Project2: Panorama Stitching
+# Stitching Panorama
 
-### Feel Free to add any links or resources to this README. I might have missed some important stuff.
+### Corners Detection and ANMS
 
-## Deadline: 
-    - 11:59:59 PM, October 20, 2020 (Eastern Standard Time)
-    - 08:59:59 PM, October 20, 2020 (Pacific Standard Time)
-    - 07:59:59 AM, October 21, 2020 (Gulf Standard Time)
-    - 09:29:59 AM, October 21, 2020 (Indian Standard Time)
+In order to find the potential corners from the image, we first converted the
+image to Black & White Image. We then used cornermetric() function with
+filter values (which we got from manually rerunning the program and
+observing) and then using imregionalMax() function to find N_strong
+points. After detecting the corners, we use ANMS to filter out N_best filter
+points from the N_strong.
 
-### Links
-- Project Description
-    - [Link](https://cmsc426.github.io/2020/proj/p2/)
-- Lecture material 
-    - [Basics](https://cmsc426.github.io/pano-prereq/) 
-    - [Panorama Stitching](https://cmsc426.github.io/pano/) 
-- Lecture Video
-    - [Link](https://umd.zoom.us/rec/play/-SjV3iJ_48eQWBbUFjrtkB8Hr4FUifbF4rKQkSq9FU-bOg1-ypkxgr8w9E9P5wESKE9JYkSReCu5UVnX.Vpi7fF1tC5FZY0ah)
+### Feature Descriptors and Feature Matching
+Now that we have found the N best feature points (i.e. N Best after using the
+ANMS algorithm), we now need to define every feature point by a feature
+vector.
 
-### TODO List for the Project
+We took a patch of 40x40 points centered for every feature point. Due to
+some feature points being present towards the edges we choose to pad
+our image with 0 in all direction. We proceeded to apply a Gaussian blur to
+the patch using fspecial. We then took a subsample of size 8x8 which we
+reshaped to obtain the feature vector of the size, 64 x 1. Lastly, we
+standardized the feature vector, where mean is 0 and variance of 1 in order
+to remove bias.
 
-- [ ] Cylinder Projection -- IDK what this means (Avi)
-- [X] Detect Corners (needs to be verified by others) -- this is not in rubric (Avi)
-- [X] ANMS (in progress)
-- [X] Feature Descriptors 
-- [ ] Feature Matching
-- [ ] RANSAC and Homography Estimation
-- [ ] Image Warping (and Blending)
-- [ ] Write Report
+For feature matching, we used two images, I1 and I2 along with their
+corresponding feature vectors, and the ratio between the
+distances(constant). We compared each feature point from image 1 to
+that of image 2 by using euclidean distances (computing the sum of square
+difference between all points) and chose the two closest vectors after
+sorting based on size. If the ration of the two vectors was less than our
+threshold of 0.5 we would consider it as a feature match, from I1 to I2.
 
-### Important notes about the project
-- We are given 3 sets of training images
-- Test images will be released before 24 hrs of deadline.
-- Functions allowed are:
-    - `imfilter`
-    - `conv2`
-    - `imrotate`
-    - `im2double`
-    - `rgb2gray`
-    - `fspecial`
-    - `imtransform`
-    - `imwarp` and `imref2d`
-    - `meshgrid`
-    - `sub2ind`
-    - `ind2sub `
-    - Any plotting and matrix operation/manipulations
+### RANSAC to estimate Robust Homography
 
-- When run, `MyPanorama.m` must load a set of images from `*Images/input/*`, and return the resulting panorama.
+We used RANSAC to better our results from feature matching to compute
+the Homography Transformation matrix which we used later on in
+constructing the panorama. The Ransac Algorithm, we followed was
+1. Select four feature pairs (at random) from image 1 and from image 2.
+2. Estimate the homography, H est using these 8 points.
+3. Apply H est to all the 4 points on from Image 1
+4. Compute the SSD between the resulting points and the 4 random points
+from image 2
+5. If the SSD value is less than our threshold of 5 consider them as inliers
+6. Repeat till we reach our max iterations or if the number of inliers is less
+than the maximum percentage of inliers (0.9 * N_best).
+7. Recompute the H est on all inliers u
+
+
+### Run
+When run, `MyPanorama.m` must load a set of images from `*Images/input/*`, and return the resulting panorama.
 
